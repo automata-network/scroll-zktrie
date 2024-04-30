@@ -1,12 +1,15 @@
 mod constants;
-pub mod go_lib;
-pub mod rs_lib;
 
 pub use constants::*;
 pub type SimpleHashSchemeFn = fn(&[u8; 32], &[u8; 32], &[u8; 32]) -> Option<[u8; 32]>;
 
 #[cfg(not(feature = "rs_zktrie"))]
+pub mod go_lib;
+#[cfg(not(feature = "rs_zktrie"))]
 pub use go_lib::*;
+
+#[cfg(feature = "rs_zktrie")]
+pub mod rs_lib;
 #[cfg(feature = "rs_zktrie")]
 pub use rs_lib::*;
 
@@ -14,10 +17,13 @@ use std::sync::OnceLock;
 static HASHSCHEME: OnceLock<SimpleHashSchemeFn> = OnceLock::new();
 
 pub fn init_hash_scheme_simple(f: SimpleHashSchemeFn) {
+    #[cfg(not(feature = "rs_zktrie"))]
     go_lib::init_hash_scheme(c_hash_scheme_adapter);
+
     HASHSCHEME.set(f).unwrap_or_default()
 }
 
+#[cfg(not(feature = "rs_zktrie"))]
 extern "C" fn c_hash_scheme_adapter(
     a: *const u8,
     b: *const u8,
@@ -77,11 +83,13 @@ mod tests {
         Some(Fr::hash_with_domain([fa, fb], fdomain).to_repr())
     }
 
+    #[cfg(not(feature = "rs_zktrie"))]
     #[link(name = "zktrie")]
     extern "C" {
         fn TestHashScheme();
     }
 
+    #[cfg(not(feature = "rs_zktrie"))]
     #[test]
     fn hash_works() {
         init_hash_scheme_simple(poseidon_hash_scheme);
